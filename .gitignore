@@ -1,0 +1,16 @@
+.gradle/
+build/
+run/
+runs/
+.idea/
+*.iml
+.vscode/
+dist/
+verification/
+crash-reports/
+*.log
+hs_err_pid*
+replay_pid*
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar

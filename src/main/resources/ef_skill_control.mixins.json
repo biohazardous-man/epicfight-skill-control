@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.skillcontrol.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "SkillContainerMixin",
+    "PlayerSkillsMixin",
+    "WeaponCapabilityMixin",
+    "TridentCapabilityMixin",
+    "ServerPayloadMixin",
+    "SkillBookItemMixin",
+    "LootTableMixin"
+  ],
+  "client": ["client.SkillEditScreenMixin", "client.CreativeModeTabsAccessor"],
+  "injectors": { "defaultRequire": 1 }
+}

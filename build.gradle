@@ -1,0 +1,64 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev' version '2.0.134'
+}
+
+version = '1.0.0'
+group = 'dev.skillcontrol'
+base.archivesName = 'epicfight-skill-control'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    maven { url = 'https://maven.blamejared.com' }
+}
+
+sourceSets {
+    gameTest {
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+configurations {
+    gameTestImplementation.extendsFrom implementation
+    gameTestRuntimeOnly.extendsFrom runtimeOnly
+    localRuntime
+    runtimeClasspath.extendsFrom localRuntime
+}
+neoForge {
+    version = '21.1.233'
+    addModdingDependenciesTo(sourceSets.gameTest)
+
+    runs {
+        client { client() }
+        server { server() }
+        gameTestServer {
+            type = 'gameTestServer'
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'ef_skill_control_tests'
+            gameDirectory = file('run/gametest')
+        }
+    }
+    mods {
+        ef_skill_control { sourceSet sourceSets.main }
+        ef_skill_control_tests { sourceSet sourceSets.gameTest }
+    }
+}
+
+dependencies {
+    implementation files('../epic-fight-21.17.3.1-mc1.21.1-neoforge.jar')
+    compileOnly 'mezz.jei:jei-1.21.1-common-api:19.21.2.313'
+    compileOnly 'mezz.jei:jei-1.21.1-neoforge-api:19.21.2.313'
+    localRuntime 'mezz.jei:jei-1.21.1-neoforge:19.21.2.313'
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'com.google.code.gson:gson:2.10.1'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+test { useJUnitPlatform() }
+jar {
+    manifest.attributes('Implementation-Version': project.version)
+}

@@ -1,0 +1,13 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="GPL-3.0-only"
+[[mods]]
+modId="ef_skill_control_tests"
+version="1.0.0"
+displayName="Skill Control Runtime Tests"
+[[dependencies.ef_skill_control_tests]]
+modId="ef_skill_control"
+type="required"
+versionRange="[1.0.0]"
+ordering="AFTER"
+side="BOTH"
