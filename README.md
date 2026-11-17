@@ -1,12 +1,12 @@
 # Epic Fight Skill Control
 
-Конфигурируемый аддон для **Minecraft 1.21.1 / NeoForge 21.1.233+ / Epic Fight 21.17.3.1**. Один JAR объединяет серверный запрет и клиентское скрытие. Установите его вместе с Epic Fight **на сервер и всем игрокам**. В одиночной игре достаточно установки в клиент.
+Configurable skill control for **Minecraft 1.21.1 / NeoForge 21.1.233+ / Epic Fight 21.17.3.1**. One JAR provides server-side restrictions and client-side hiding. Install it alongside Epic Fight **on the server and every client**. For single-player, install it on the client only.
 
-## Конфигурация
+## Configuration
 
-При первом запуске создаётся `config/epicfight-skill-control.json`. В `skills` перечисляются **все навыки из реестра установленной сборки**, включая зарегистрированные другими аддонами, оружейные и системные навыки. По умолчанию каждый навык включён.
+The first launch creates `config/epicfight-skill-control.json`. Its `skills` object lists **every skill registered in the installed modpack**, including skills from other addons, weapon skills, and system skills. All skills are enabled by default.
 
-Найдите нужный ID и измените только его `enabled`:
+Find the skill ID and change its `enabled` value:
 
 ```json
 "epicfight:phantom_ascent": {
@@ -19,52 +19,52 @@
 }
 ```
 
-Это фрагмент объекта `skills`, не полный файл. После изменения **перезапустите сервер**; в одиночной игре — клиент. Игроки получают действующий список запретов с сервера до входа в мир, независимо от своего локального конфига.
+This is an entry inside `skills`, not a complete configuration file. After editing, **restart the server**, or restart the client for single-player. Clients receive the server's restrictions before entering the world, regardless of their local configuration.
 
-- Английские названия и описания берутся из `assets/<namespace>/lang/en_us.json` установленных модов. Если перевода нет, названием будет ID, описание останется пустым. Клиентские ресурспаки не используются.
-- `%d`, `%s` и похожие вставки в описаниях — исходные шаблоны перевода, а не вычисленные игровые значения. Поля описания служат справочником и не меняют поведение навыка.
-- При установке новых навыков их записи добавляются при следующем запуске с `enabled: true`. Существующие настройки и дополнительные поля сохраняются.
-- Записи временно удалённых модов сохраняются. Неизвестные запрещённые ID отмечаются в логе.
-- Если новых записей нет, файл не перезаписывается. Ошибки JSON, повторяющиеся ключи и значения вроде `"false"` вместо `false` останавливают загрузку с указанием файла; повреждённый конфиг не заменяется дефолтным.
-- Удаление файла создаст новый конфиг, где всё включено. Удаление отдельной записи добавит её заново включённой.
+- English names and descriptions come from `assets/<namespace>/lang/en_us.json` in installed mods. If a translation is missing, the name falls back to the skill ID and the description is empty. Client resource packs are not used.
+- Placeholders such as `%d` and `%s` are part of the original translation templates, not calculated gameplay values. Description fields are reference text and do not change skill behavior.
+- Newly registered skills are added on the next launch with `enabled: true`. Existing settings and extra fields are preserved.
+- Entries for temporarily removed mods are retained. Unknown disabled skill IDs produce a log warning.
+- If there are no new entries, the file is not rewritten. Invalid JSON, duplicate keys, or values such as `"false"` instead of `false` stop loading with an error that identifies the file. Invalid configuration is never replaced with defaults.
+- Deleting the file generates a new configuration with everything enabled. Deleting an individual entry causes it to be added again as enabled.
 
-## Что отключается
+## Disabled skill behavior
 
-Запрещённый навык нельзя установить в контейнер или применить, включая удерживаемые навыки. Его пассивные обработчики не устанавливаются. Запрет действует также при загрузке сохранения и назначении оружейных навыков.
+A disabled skill cannot be equipped or cast, including held skills. Its passive handlers are not registered. Restrictions also apply when loading player saves and assigning weapon skills.
 
-Навык скрывается из выбора навыков в выживании и творческом режиме. Без установленного навыка нет его HUD. Для штатных оружейных возможностей Epic Fight убираются также ссылки на запрещённый спецприём в подсказках. Книги исчезают из творческих вкладок и поиска; интеграция с JEI скрывает отдельные варианты книг и связанные информационные рецепты. JEI не обязателен.
+Disabled skills are hidden from skill selection in Survival and Creative modes. Unequipped skills have no HUD entries. For standard Epic Fight weapon capabilities, tooltips also omit references to disabled special attacks. Skill books disappear from creative tabs and search results. Optional JEI integration hides individual book variants and related information recipes.
 
-**Существующие книги запрещённых навыков удаляются:** из открываемых контейнеров и инвентаря игрока, а также при появлении предметов-книг в мире. Запрещённые книги исключаются из добычи. Перед включением запретов в существующем мире сделайте резервную копию. Закрытые хранилища и вложенные предметы обрабатываются, когда их содержимое становится доступным обычному меню/миру.
+**Existing books for disabled skills are deleted** from player inventories and opened containers, and when book item entities enter the world. Disabled books are also removed from loot. Back up an existing world before enabling restrictions. Items in unopened storage or nested items are processed when their contents become accessible through a regular menu or the world.
 
-Ранее изученные навыки сохраняются во внутренних данных игрока, но скрыты и недоступны. После включения навык можно выбрать снова; снятая экипировка автоматически не восстанавливается. Реестровые записи не удаляются: это предотвращает поломку ссылок в оружии и сохранениях.
+Previously learned skills remain in player data but are hidden and unavailable while disabled. After re-enabling a skill, players can select it again; unequipped skills are not automatically re-equipped. Registry entries are retained to preserve references in weapons and saves.
 
-## Границы
+## Limitations
 
-- Выключение `epicfight:combo_attacks` затронет обычные атаки, а не только спецприёмы. Не отключайте системные навыки без проверки боевой системы.
-- Аддон не меняет анимации обычных комбо, параметры физики и поведение мобов, которое не использует систему навыков игрока.
-- Собственные интерфейсы, подсказки и прямые обходы API в сторонних аддонах требуют отдельной проверки. JEI-категории сторонних модов, отличные от информационных описаний, не фильтруются автоматически. EMI не интегрирован.
-- Поддерживаемая версия Epic Fight намеренно ограничена `21.17.3.1`: точки Mixin зависят от её API. Исходный Epic Fight JAR не изменяется и не включается в аддон.
+- Disabling `epicfight:combo_attacks` affects regular attacks, not just special attacks. Test the combat system before disabling system skills.
+- The addon does not change regular combo animations, physics parameters, or mob behavior that does not use the player skill system.
+- Custom interfaces, tooltips, and direct API bypasses in third-party addons require separate compatibility checks. Third-party JEI recipe categories other than information recipes are not automatically filtered. EMI is not integrated.
+- Epic Fight support is intentionally restricted to `21.17.3.1` because Mixin hooks depend on its API. The original Epic Fight JAR is neither modified nor bundled.
 
-## Сборка
+## Build
 
-Нужен JDK 21. Рядом с каталогом проекта должен находиться исходный `epic-fight-21.17.3.1-mc1.21.1-neoforge.jar`.
+Use JDK 21. Place the original `epic-fight-21.17.3.1-mc1.21.1-neoforge.jar` in the parent directory of this project.
 
 ```powershell
 $env:JAVA_HOME = 'C:\path\to\jdk-21'
 .\gradlew.bat build
 ```
 
-Результат: `build/libs/epicfight-skill-control-1.0.0.jar`. Автоматические тесты проверяют генерацию и сохранение конфигурации.
+Output: `build/libs/epicfight-skill-control-1.0.0.jar`. Automated tests cover configuration generation and preservation.
 
-## Тесты
+## Tests
 
 ```powershell
 .\gradlew.bat test
 .\gradlew.bat runGameTestServer
 ```
 
-Модульные тесты проверяют генерацию и дополнение каталога, сохранение настроек и отклонение ошибочной конфигурации без перезаписи.
+Unit tests cover catalog generation and updates, setting preservation, and rejection of invalid configuration without overwriting the file.
 
-GameTest проверяет запрет установки и применения навыков, загрузку сохранений, пассивки, оружейные спецприёмы, книги, контейнеры и добычу.
+GameTest covers skill installation and casting restrictions, save loading, passive skills, weapon special attacks, books, containers, and loot.
 
-Тестовый мод из `src/gameTest` используется только в запусках разработки и не входит в выпускаемый JAR.
+The test mod in `src/gameTest` is used only in development runs and is not included in the release JAR.
