@@ -60,5 +60,6 @@ tasks.withType(JavaCompile).configureEach {
 }
 test { useJUnitPlatform() }
 jar {
+    from('LICENSE') { into 'META-INF' }
     manifest.attributes('Implementation-Version': project.version)
 }

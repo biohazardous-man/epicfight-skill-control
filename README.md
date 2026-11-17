@@ -63,7 +63,7 @@ Output: `build/libs/epicfight-skill-control-1.0.0.jar`. Automated tests cover co
 .\gradlew.bat runGameTestServer
 ```
 
-Unit tests cover catalog generation and updates, setting preservation, and rejection of invalid configuration without overwriting the file.
+Unit tests cover catalog generation and updates, setting preservation, escaped text and exact numeric values, and rejection of invalid configuration without overwriting the file.
 
 GameTest covers skill installation and casting restrictions, save loading, passive skills, weapon special attacks, books, containers, and loot.
 

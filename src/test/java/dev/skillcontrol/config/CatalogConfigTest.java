@@ -196,6 +196,39 @@ class CatalogConfigTest {
     }
 
     @Test
+    void preservesEscapedTextAndExactNumbersWhenCatalogGrows() throws IOException {
+        Path path = directory.resolve("skills.json");
+        String notes = "Quoted \"enabled\": false; path C:\\skills\\books\n\tCafé";
+        JsonObject root = new JsonObject();
+        root.addProperty("schemaVersion", 1);
+        root.add("skills", new JsonObject());
+        root.addProperty("notes", notes);
+        root.add("reference", JsonParser.parseString("""
+                {"decimal":1.2300,"exponent":1e+02,"large":9007199254740993,"negativeZero":-0}
+                """));
+        Files.writeString(path, root.toString(), StandardCharsets.UTF_8);
+
+        CatalogConfig.load(path, List.of(ALPHA));
+
+        JsonObject updated = readRoot(path);
+        assertEquals(notes, updated.get("notes").getAsString());
+        JsonObject reference = updated.getAsJsonObject("reference");
+        assertEquals("1.2300", reference.get("decimal").getAsString());
+        assertEquals("1e+02", reference.get("exponent").getAsString());
+        assertEquals("9007199254740993", reference.get("large").getAsString());
+        assertEquals("-0", reference.get("negativeZero").getAsString());
+        assertOnlyConfigFile(path);
+    }
+
+    @Test
+    void rejectsUnescapedControlCharactersWithoutClobbering() throws IOException {
+        for (char character = 0; character < 0x20; character++) {
+            assertInvalidUnchanged("{\"schemaVersion\":1,\"skills\":{},\"notes\":\"raw"
+                    + character + "character\"}", null);
+        }
+    }
+
+    @Test
     void rejectsInvalidUtf8WithoutClobbering() throws IOException {
         Path path = directory.resolve("skills.json");
         byte[] original = {(byte) 0xc3, (byte) 0x28};

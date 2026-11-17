@@ -1,20 +1,10 @@
 package dev.skillcontrol.config;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonPrimitive;
-import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
@@ -29,7 +19,6 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 public final class CatalogConfig {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().serializeNulls().create();
     private static final Pattern SKILL_ID = Pattern.compile("[a-z0-9_.-]+:[a-z0-9/._-]+");
     private static final String INSTRUCTIONS = "Set enabled to false to disable a skill. "
             + "Set enabled to true to enable a skill. "
@@ -48,57 +37,74 @@ public final class CatalogConfig {
 
     public static Set<String> load(Path path, Collection<SkillInfo> catalog) throws IOException {
         Path target = path.toAbsolutePath().normalize();
-        Map<String, SkillInfo> sortedCatalog = validateCatalog(target, catalog);
-        JsonObject root;
-        boolean changed = false;
-        String text;
-        try {
-            text = Files.readString(target, StandardCharsets.UTF_8);
-        } catch (NoSuchFileException missing) {
-            text = null;
-        } catch (IOException failure) {
-            throw new IOException("Cannot read skill configuration '" + target + "': " + failure.getMessage(), failure);
-        }
-        if (text == null) {
-            root = new JsonObject();
-            root.addProperty("schemaVersion", 1);
-            root.addProperty("instructions", INSTRUCTIONS);
-            root.add("skills", new JsonObject());
-            changed = true;
-        } else {
-            root = parse(target, text);
+        Map<String, SkillInfo> sortedCatalog = validateAndSortCatalog(target, catalog);
+        JsonObject root = readExistingConfig(target);
+        boolean created = root == null;
+        if (created) {
+            root = createDefaultConfig();
         }
 
         JsonObject skills = validateRoot(target, root);
-        Set<String> disabled = new TreeSet<>();
-        for (Map.Entry<String, JsonElement> entry : skills.entrySet()) {
-            String id = entry.getKey();
-            String location = "$.skills[" + id + "]";
-            validateId(target, id, location);
-            if (!entry.getValue().isJsonObject()) {
-                throw invalid(target, location, "expected a skill object");
-            }
-            JsonElement enabled = entry.getValue().getAsJsonObject().get("enabled");
-            if (enabled == null || !enabled.isJsonPrimitive() || !enabled.getAsJsonPrimitive().isBoolean()) {
-                throw invalid(target, location + ".enabled", "expected an explicit boolean (true or false)");
-            }
-            if (!enabled.getAsBoolean()) {
-                disabled.add(id);
-            }
-        }
-        for (SkillInfo skill : sortedCatalog.values()) {
-            if (!skills.has(skill.id())) {
-                skills.add(skill.id(), entry(skill));
-                changed = true;
-            }
-        }
-        if (changed) {
+        Set<String> disabled = readDisabledSkills(target, skills);
+        boolean updated = appendMissingSkills(skills, sortedCatalog.values());
+        if (created || updated) {
             replaceAtomically(target, root);
         }
         return Collections.unmodifiableSet(disabled);
     }
 
-    private static Map<String, SkillInfo> validateCatalog(Path path, Collection<SkillInfo> catalog) throws IOException {
+    private static JsonObject readExistingConfig(Path path) throws IOException {
+        String text;
+        try {
+            text = Files.readString(path, StandardCharsets.UTF_8);
+        } catch (NoSuchFileException missing) {
+            return null;
+        } catch (IOException failure) {
+            throw new IOException("Cannot read skill configuration '" + path + "': " + failure.getMessage(), failure);
+        }
+        return ConfigJson.parse(path, text);
+    }
+
+    private static JsonObject createDefaultConfig() {
+        JsonObject root = new JsonObject();
+        root.addProperty("schemaVersion", 1);
+        root.addProperty("instructions", INSTRUCTIONS);
+        root.add("skills", new JsonObject());
+        return root;
+    }
+
+    private static Set<String> readDisabledSkills(Path path, JsonObject skills) throws IOException {
+        Set<String> disabled = new TreeSet<>();
+        for (Map.Entry<String, JsonElement> entry : skills.entrySet()) {
+            String id = entry.getKey();
+            String location = "$.skills[" + id + "]";
+            validateId(path, id, location);
+            if (!entry.getValue().isJsonObject()) {
+                throw invalid(path, location, "expected a skill object");
+            }
+            JsonElement enabled = entry.getValue().getAsJsonObject().get("enabled");
+            if (enabled == null || !enabled.isJsonPrimitive() || !enabled.getAsJsonPrimitive().isBoolean()) {
+                throw invalid(path, location + ".enabled", "expected an explicit boolean (true or false)");
+            }
+            if (!enabled.getAsBoolean()) {
+                disabled.add(id);
+            }
+        }
+        return disabled;
+    }
+
+    private static boolean appendMissingSkills(JsonObject skills, Collection<SkillInfo> catalog) {
+        boolean updated = false;
+        for (SkillInfo skill : catalog) {
+            if (!skills.has(skill.id())) {
+                skills.add(skill.id(), createSkillEntry(skill));
+                updated = true;
+            }
+        }
+        return updated;
+    }
+
+    private static Map<String, SkillInfo> validateAndSortCatalog(Path path, Collection<SkillInfo> catalog) throws IOException {
         if (catalog == null) {
             throw invalid(path, "catalog", "catalog must not be null");
         }
@@ -139,7 +145,7 @@ public final class CatalogConfig {
         return skills.getAsJsonObject();
     }
 
-    private static JsonObject entry(SkillInfo skill) {
+    private static JsonObject createSkillEntry(SkillInfo skill) {
         JsonObject entry = new JsonObject();
         entry.addProperty("enabled", true);
         entry.addProperty("name", skill.name());
@@ -150,91 +156,16 @@ public final class CatalogConfig {
         return entry;
     }
 
-    private static JsonObject parse(Path path, String text) throws IOException {
-        validateStringCharacters(path, text);
-        try (JsonReader reader = new JsonReader(new StringReader(text))) {
-            reader.setLenient(false);
-            try {
-                JsonElement root = readValue(path, reader, "$");
-                if (reader.peek() != JsonToken.END_DOCUMENT) {
-                    throw invalid(path, "$", "unexpected data after the root object");
-                }
-                if (!root.isJsonObject()) {
-                    throw invalid(path, "$", "expected a root object");
-                }
-                return root.getAsJsonObject();
-            } catch (IOException | IllegalStateException failure) {
-                throw new IOException("Cannot parse skill configuration '" + path + "' at "
-                        + reader.getPath() + ": " + failure.getMessage(), failure);
-            }
-        }
-    }
-
-    private static JsonElement readValue(Path path, JsonReader reader, String location) throws IOException {
-        return switch (reader.peek()) {
-            case BEGIN_OBJECT -> {
-                reader.beginObject();
-                JsonObject object = new JsonObject();
-                while (reader.hasNext()) {
-                    String name = reader.nextName();
-                    String member = location + "[" + name + "]";
-                    if (object.has(name)) {
-                        throw invalid(path, member, "duplicate object key");
-                    }
-                    object.add(name, readValue(path, reader, member));
-                }
-                reader.endObject();
-                yield object;
-            }
-            case BEGIN_ARRAY -> {
-                reader.beginArray();
-                JsonArray array = new JsonArray();
-                while (reader.hasNext()) {
-                    array.add(readValue(path, reader, location + "[" + array.size() + "]"));
-                }
-                reader.endArray();
-                yield array;
-            }
-            case STRING -> new JsonPrimitive(reader.nextString());
-            case NUMBER -> JsonParser.parseString(reader.nextString());
-            case BOOLEAN -> new JsonPrimitive(reader.nextBoolean());
-            case NULL -> {
-                reader.nextNull();
-                yield JsonNull.INSTANCE;
-            }
-            default -> throw invalid(path, location, "expected a JSON value");
-        };
-    }
-
-    private static void validateStringCharacters(Path path, String text) throws IOException {
-        boolean inString = false;
-        boolean escaped = false;
-        for (int index = 0; index < text.length(); index++) {
-            char character = text.charAt(index);
-            if (inString && character < 0x20) {
-                throw invalid(path, "$", "unescaped control character at character " + index);
-            }
-            if (escaped) {
-                escaped = false;
-            } else if (inString && character == '\\') {
-                escaped = true;
-            } else if (character == '"') {
-                inString = !inString;
-            }
-        }
-    }
-
     private static void replaceAtomically(Path path, JsonObject root) throws IOException {
         Path parent = path.getParent();
         Files.createDirectories(parent);
         Path temporary = Files.createTempFile(parent, "." + path.getFileName() + ".", ".tmp");
         try {
             try (BufferedWriter writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
-                GSON.toJson(root, writer);
-                writer.write('\n');
+                ConfigJson.write(writer, root);
             }
             Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException | JsonIOException failure) {
+        } catch (IOException failure) {
             throw new IOException("Cannot update skill configuration '" + path + "' atomically: "
                     + failure.getMessage(), failure);
         } finally {
