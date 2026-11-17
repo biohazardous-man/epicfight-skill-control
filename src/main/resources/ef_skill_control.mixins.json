@@ -4,6 +4,7 @@
   "package": "dev.skillcontrol.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ContainerMenuMixin",
     "SkillContainerMixin",
     "PlayerSkillsMixin",
     "WeaponCapabilityMixin",

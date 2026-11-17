@@ -4,7 +4,7 @@ license="GPL-3.0-only"
 
 [[mods]]
 modId="ef_skill_control"
-version="1.0.0"
+version="1.0.1"
 displayName="Epic Fight Skill Control"
 description='''Selectively disables and hides Epic Fight skills. Generates a complete skill catalog for pack designers.'''
 

@@ -1,14 +1,11 @@
 package dev.skillcontrol;
 
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 public final class BookCleanup {
     private BookCleanup() {}
@@ -20,24 +17,12 @@ public final class BookCleanup {
         }
     }
 
-    @SubscribeEvent
-    public static void onContainerOpen(PlayerContainerEvent.Open event) {
-        if (!event.getEntity().level().isClientSide()) cleanMenu(event.getContainer());
-    }
-
-    @SubscribeEvent
-    public static void onPlayerTick(PlayerTickEvent.Post event) {
-        Player player = event.getEntity();
-        if (player.level().isClientSide()) return;
-        if (SkillPolicy.localDisabled().isEmpty()) return;
-        cleanMenu(player.containerMenu);
-        if (SkillPolicy.isDisabled(player.containerMenu.getCarried())) player.containerMenu.setCarried(ItemStack.EMPTY);
-    }
-
-    private static void cleanMenu(AbstractContainerMenu menu) {
-        for (int index = 0; index < menu.slots.size(); index++) {
-            Slot slot = menu.slots.get(index);
-            if (SkillPolicy.isDisabled(slot.getItem())) slot.set(ItemStack.EMPTY);
-        }
+    public static boolean discardDisabled(ItemStack stack) {
+        if (!SkillPolicy.isDisabled(stack)) return false;
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null || !server.isSameThread()) return false;
+        // Vanilla may already hold this stack in a local variable or copy supplier.
+        stack.setCount(0);
+        return true;
     }
 }

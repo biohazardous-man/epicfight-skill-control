@@ -36,6 +36,8 @@ Disabled skills are hidden from skill selection in Survival and Creative modes. 
 
 **Existing books for disabled skills are deleted** from player inventories and opened containers, and when book item entities enter the world. Disabled books are also removed from loot. Back up an existing world before enabling restrictions. Items in unopened storage or nested items are processed when their contents become accessible through a regular menu or the world.
 
+Cleanup uses vanilla's initial container snapshots and updates for changed slots and cursor stacks. There is no player-tick listener or separate per-tick inventory scan. Unchanged menus do not invoke the cleanup check.
+
 Previously learned skills remain in player data but are hidden and unavailable while disabled. After re-enabling a skill, players can select it again; unequipped skills are not automatically re-equipped. Registry entries are retained to preserve references in weapons and saves.
 
 ## Limitations
@@ -54,7 +56,7 @@ $env:JAVA_HOME = 'C:\path\to\jdk-21'
 .\gradlew.bat build
 ```
 
-Output: `build/libs/epicfight-skill-control-1.0.0.jar`. Automated tests cover configuration generation and preservation.
+Output: `build/libs/epicfight-skill-control-1.0.1.jar`. Automated tests cover configuration generation and preservation.
 
 ## Tests
 
@@ -65,6 +67,6 @@ Output: `build/libs/epicfight-skill-control-1.0.0.jar`. Automated tests cover co
 
 Unit tests cover catalog generation and updates, setting preservation, escaped text and exact numeric values, and rejection of invalid configuration without overwriting the file.
 
-GameTest covers skill installation and casting restrictions, save loading, passive skills, weapon special attacks, books, containers, and loot.
+GameTest covers skill restrictions, save loading, passive skills, weapon special attacks, books, and loot. Container coverage includes initial and incremental slot/cursor synchronization, in-place skill component changes, suppressed updates, and full resynchronization.
 
 The test mod in `src/gameTest` is used only in development runs and is not included in the release JAR.
